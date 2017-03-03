@@ -7,8 +7,8 @@
 #################################################
 
 ## TO-DO
-## Future versions of this script will accept external parameters,
-## (which should get rid of the configurations below) allow you to
+## Future versions of this script will accept external parameters
+## (which should get rid of the configurations below), allow you to
 ## change the tool that returns your current IP and general improvements.
 
 ## Requirements:
