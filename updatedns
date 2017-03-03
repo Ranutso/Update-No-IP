@@ -1,0 +1,145 @@
+#!/usr/local/bin/python3
+#################################################
+# (c) 2017 Andre Godoi                          #
+# A simple python3-based No-IP Updater. v 1.0   #
+# It was developed to work as a scheduled       #
+# job in tools such as cron or Apple's launchd. #
+#################################################
+
+## TO-DO
+## Future versions of this script will accept external parameters,
+## (which should get rid of the configurations below) allow you to
+## change the tool that returns your current IP and general improvements.
+
+## Requirements:
+## This script requires 'requests' to be installed in the system:
+## pip3 install requests
+
+import requests
+import datetime
+import time
+import socket
+import base64
+
+##
+## Configuration
+##
+
+logfile = "/var/log/updatedns.log"
+noip = {
+    'host': '', # Your No-IP host you want to update.
+    'user': '', # Your username at No-IP.
+    'pass': ''  # Your password at No-IP. 
+}
+user_agent = 'A Simple Updater/1.0 youremail@yourserver.com' # You may choose whatever user agent you want to report to No-IP's server (required).
+update_noip = True # You may run this script without updating anything at the remote No-IP server.
+
+##
+## End of Configuration. You shouldn't have to edit anything below.
+##
+
+##
+## Function definitions
+##
+
+def writeLog(message):
+    date = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S") # Gets current date and time
+    log = "{date} | {message}\n".format(date=date, message=message)
+    try:
+        f = open(logfile, 'a') # Try to append the log message to the end of log file.
+    except FileNotFoundError:
+        f = open(logfile, 'w') # If the log file still doesn't exist, create one.
+    except:
+        pass # We're passing all other file errors in order to allow script execution without logging what happened.
+    else:
+        f.write(log)
+        f.close()
+## End of writeLog
+
+def updateNoIP(host, ip, user, password, user_agent):
+    """Update a hostname at NoIP.
+
+    This function updates a NoIP hostname and writes the result in a log file.
+    Therefore, this function depends on another function called writeLog. It
+    implements all of NoIP's return messages, however this function does not
+    guarantee that you are following their guidelines and rules (such as not
+    trying to update the hostname with the same IP several times). Please note
+    you need to set your user agent below, this is how NoIP knows which client
+    is trying to issue the update command. For security issues, a generic user
+    agent was set.
+    """
+    noip_base_address = "dynupdate.no-ip.com/nic/update"
+    noip_update_address = "https://" + user.strip() + ":" + password.strip() + "@" + noip_base_address # Building NoIP's update URL. Python 3 works great with https, may change code in the future to allow method selection.
+    payload = {'hostname': host, 'myip': ip} # The GET parameters portion of the URL.
+    base64_encoded_string = base64.b64encode("{0}:{1}".format(user, password).encode()) # Encode user:pass into Base64 following NoIP's guidelines.
+    headers = {'User-Agent': user_agent, 'Authorization': "Basic {0}".format(base64_encoded_string)} # Setting headers to our User-Agent and Authorization.
+    r = requests.get(noip_update_address, headers=headers, params=payload)
+    reply = r.text.strip()
+    # The reply may or may not contain the IP portion. Therefore
+    # we shall try to catch the exception of the split method in
+    # case there was no IP in the reply.
+    try:
+        (status, ip) = reply.split(' ') # Let's break the reply into status and returned IP.
+    except ValueError:
+        # If we can't split the reply by a space, it means the reply didn't contain the IP portion.
+        status = reply
+        ip = ''
+    # Now let's parse the reply and act accordingly.
+    # Below are all possible status replies from NoIP according to their documentation.
+    if status == 'good':
+        # Everything was good, let's write our log.
+        writeLog("NoIP: Updated successfully with IP {0}".format(ip))
+        return True
+    elif status == 'nochg':
+        # Ideally, we should never get this message since we are updating the IP address only if it changed.
+        # In this case, let's log this behaviour.
+        writeLog("NoIP: We tried to update but it was reported that there was no change to the IP {0}".format(ip))
+        return False
+    elif status == 'nohost':
+        # Hostname supplied does not exist under specified account.
+        writeLog("NoIP: Hostname supplied \"{0}\" does not exist under specified NoIP account".format(host))
+        return False
+    elif status == 'badauth':
+        # Bad authorization, user and password.
+        writeLog("NoIP: Invalid username and password")
+        return False
+    elif status == 'badagent':
+        # This update agent has been disabled.
+        writeLog("NoIP: This update agent has been disabled")
+        return False
+    elif status == '!donator':
+        # An update request was sent including a feature that is not available to that particular user such as offline options.
+        # Ideally we should never have this reply.
+        writeLog("NoIP: An update request was sent including a feature that is not available to this user {0}".format(user))
+        return False
+    elif status == 'abuse':
+        # Username is blocked due to abuse. Either for not following NoIP's specifications or disabled due to violation of the No-IP terms of service.
+        # We should really avoid this status!
+        writeLog("NoIP: This username {0} has been disabled due to abuse.".format(user))
+        return False
+    elif status == '911':
+        # A fatal error NoIP's side such as a database outage.
+        writeLog("NoIP: NoIP is having difficulties now, IP not updated.")
+        return False
+    else:
+        # Above are all possible NoIP return messages, anything else is unknown.
+        writeLog("NoIP: NoIP returned an unknown message.")
+        return False
+## End of updateNoIP()
+
+##
+## Main program
+##
+
+# Now let's try to update NoIP.
+if update_noip:
+    # Get IP configured at NoIP
+    current_ip_at_noip = socket.gethostbyname(noip['host'])
+    # Get current IP
+    r = requests.get("http://irash.net/myip?raw")
+    current_ip = r.text
+    # Let's compare the IPs and update only if necessary.
+    if current_ip != current_ip_at_noip:
+        # If our current IP differs from what is configured at NoIP, let's update it.
+        updateNoIP(host=noip['host'], ip=current_ip, user=noip['user'], password=noip['pass'], user_agent=user_agent)
+exit()
