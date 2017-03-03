@@ -1,0 +1,21 @@
+Python3 Simple No-IP Updater
+℗ 2017 Andre Godoi
+
+SUMMARY
+I developed this script to use in conjunction with  Apple launchd scheduler, a cron-like tool exclusive to macOS. The official No-IP Updater client wasn't working for me and I was interested in something simpler and more integrated with my little server box. This script can also be used with the classic crontab scheduler as well.
+
+It was written in Python3 and it requires the Requests package to work.
+
+REQUIREMENTS
+This script requires both Python3 and Requests to work. To install Requests type:
+pip3 install requests
+
+LIMITATIONS
+This script was developed to suit my needs and it was written with very very simple code. Unfortunately, today, you need to edit the main script file to configure the hostname, username and password for your No-IP account. In the future, I plan on enhancing the script to support external parameters (more like a tradicional command line command) and better error handling.
+
+FILES
+You'll find 2 files in this repository:
+
+com.rash.updatedns.plist: is a launchd compliant plist file. It is configured (by default) to run every 30 minutes and at system start. You may change this file's parameters at will following Apple's launchd guidelines: https://developer.apple.com/legacy/library/documentation/Darwin/Reference/ManPages/man5/launchd.plist.5.html
+
+updatedns: is the actual script file. It should run by itself (by setting the execute bit) on macOS if python3 is installed by the most common packet managers such as Homebrew. Or you may pass it as a script to your python3 interpreter.

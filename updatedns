@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
 #################################################
 # (c) 2017 Andre Godoi                          #
 # A simple python3-based No-IP Updater. v 1.0   #
